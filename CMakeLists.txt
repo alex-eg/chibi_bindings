@@ -18,25 +18,40 @@ target_include_directories(chibi_bindings
   PUBLIC src
 )
 
-ExternalProject_Add(chibi_scheme
-  GIT_REPOSITORY "https://github.com/ashinn/chibi-scheme"
-  GIT_TAG "0.8"
+# Build and get files from chibi
 
-  SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/deps/download/chibi"
-
-  UPDATE_COMMAND ""
-  CONFIGURE_COMMAND ""
-  BUILD_COMMAND make
-  INSTALL_COMMAND CHIBI_MODULE_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/download/chibi/lib PREFIX=${CMAKE_CURRENT_SOURCE_DIR}/deps/chibi make install
-  BUILD_IN_SOURCE 1
-
-  LOG_BUILD 1
+set(CHIBI_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/chibi-scheme)
+add_custom_target(chibi-scheme
+  COMMAND make libchibi-scheme${CMAKE_STATIC_LIBRARY_SUFFIX} lib/chibi.img CHIBI_MODULE_PATH=${CHIBI_PATH}/lib
+  WORKING_DIRECTORY ${CHIBI_PATH}
 )
-target_link_libraries(chibi_bindings ${CMAKE_CURRENT_SOURCE_DIR}/deps/chibi/lib/libchibi-scheme.so)
+add_custom_command(
+  TARGET chibi_bindings PRE_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy
+  ${CHIBI_PATH}/libchibi-scheme.so
+  ${CMAKE_CURRENT_BINARY_DIR} # Copy the library to link with it
+)
+add_library(libchibi-scheme STATIC IMPORTED)
+set_property(TARGET libchibi-scheme PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/libchibi-scheme.so)
+
+add_custom_command(
+  TARGET chibi_bindings PRE_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+  ${CHIBI_PATH}/lib
+  ${CMAKE_BINARY_DIR}/chibi_lib # Copy runtime libraries to the output directory
+)
+
+add_dependencies(chibi_bindings chibi-scheme)
+if (UNIX OR APPLE)
+  target_link_libraries(chibi_bindings dl)
+endif()
+
+target_link_libraries(chibi_bindings libchibi-scheme)
 target_include_directories(chibi_bindings
-  PUBLIC deps/chibi/include
+  PUBLIC deps/chibi-scheme/include
 )
-add_dependencies(chibi_bindings chibi_scheme)
+
+# Testing
 
 include(CTest)
 include(GoogleTest)

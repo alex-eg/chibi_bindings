@@ -8,11 +8,12 @@
 TEST(RTDTests, AllFields) {
     Chibi chibi;
 
-    chibi.eval_strings(
+    auto r = chibi.eval_strings(
         "(import (srfi 99))",
         "(define-record-type a-type #t #t a)",
         "(define-record-type (b-type a-type) #t #t b)"
-   );
+    );
+    r[0].dump_to_port();
 
     RecordTypeDescriptor rtd(chibi, "b-type");
 
